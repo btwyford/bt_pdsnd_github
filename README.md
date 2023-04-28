@@ -14,4 +14,10 @@ chicago.csv - Chicago bike share data
 new_york_city.csv - New York City bike share data
 washington.csv - Wasington bike share data
 
-
+## Usage
+Run the script - py bikeshare_2.py
+- Enter country (chicago, washington or new york city)
+- Enter month or all
+- Enter day or all
+- Yes or No to view raw data
+- Yes or no to rerun
