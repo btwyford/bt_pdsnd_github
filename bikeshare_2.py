@@ -2,6 +2,18 @@ import time
 import pandas as pd
 import numpy as np
 
+"""
+Script to analyse and filter bike share data
+
+Changelog:
+
+Date       Version Author Comments
+---------- ------- ------ ------------------------
+24/04/2023     1.1     BT Added changelog
+
+
+"""
+
 YES_NO = ['yes', 'no']
 
 CITY_DATA = { 'chicago': 'chicago.csv',
