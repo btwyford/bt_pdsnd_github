@@ -1,6 +1,12 @@
 import time
 import pandas as pd
 import numpy as np
+import ctypes
+
+# Constants from the Windows API
+STD_OUTPUT_HANDLE = -11
+FOREGROUND_RED    = 0x0004 # text color contains red.
+FOREGROUND_GREEN  = 0x0002 # text color contains green.
 
 YES_NO = ['yes', 'no']
 
@@ -31,14 +37,38 @@ DAYS = { 'monday': 0,
          'sunday' : 6,               
          'all' : -1 }
 
-def display_message(message):
+def get_csbi_attributes(handle):
+    # Based on IPython's winconsole.py, written by Alexander Belchenko
+    import struct
+    csbi = ctypes.create_string_buffer(22)
+    res = ctypes.windll.kernel32.GetConsoleScreenBufferInfo(handle, csbi)
+    assert res
+
+    (bufx, bufy, curx, cury, wattr,
+    left, top, right, bottom, maxx, maxy) = struct.unpack("hhhhHhhhhhh", csbi.raw)
+    return wattr
+
+def display_message(message, message_level = "info"):
     """
     Displays message to the user
     Args:
         (str) - message - what to display to the user
 
     """
-    print(message)
+    handle = ctypes.windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
+    reset = get_csbi_attributes(handle)
+
+    if (message_level == "error"):
+        ctypes.windll.kernel32.SetConsoleTextAttribute(handle, FOREGROUND_RED)
+        print(message)
+        
+    else:
+        ctypes.windll.kernel32.SetConsoleTextAttribute(handle, FOREGROUND_GREEN)
+        print(message)
+    
+    ctypes.windll.kernel32.SetConsoleTextAttribute(handle, reset)
+
+    #print(CREDBG2 + message)
         
 def get_valid_input(prompt, valid_values):
     """
@@ -59,7 +89,8 @@ def get_valid_input(prompt, valid_values):
             if input_value.lower() == valid_value.lower():
                 return valid_value
         
-        input_value = input('\n' + '   Sorry but "' + input_value + '" is not a valid value.\n   Valid options are: ' + valid_values_string + '\n')
+        display_message('   Sorry "' + input_value + '" is not a valid value.','error')
+        input_value = input('\n' + prompt + '\n   Valid options are: ' + valid_values_string + '\n')
 
     return ""
 
@@ -158,7 +189,7 @@ def time_stats(df):
 
     # Check if there is any time data
     if df['Start Time'].count() == 0:
-        display_message('Sorry there is no time data to report on.')
+        display_message('Sorry there is no time data to report on.','error')
         return
 
     display_message('Calculating The Most Frequent Times of Travel...')
@@ -185,7 +216,7 @@ def station_stats(df):
 
     # Check if there is any station data
     if df['Start Station'].count() == 0:
-        display_message('Sorry there is no station data to report on.')
+        display_message('Sorry there is no station data to report on.','error')
         return
 
     display_message('Calculating The Most Popular Stations and Trip...')
@@ -218,7 +249,7 @@ def trip_duration_stats(df):
     # Check if there is any trip data
     
     if df['Trip Duration'].count() == 0:
-        display_message('Sorry there is no trip data to report on.')
+        display_message('Sorry there is no trip data to report on.','error')
         return
 
     display_message('Calculating Trip Duration...')
@@ -241,7 +272,7 @@ def user_stats(df):
 
     # Check if there is any user data
     if df['User Type'].count() == 0:
-        display_message('Sorry there is no user data to report on.')
+        display_message('Sorry there is no user data to report on.','error')
         return
 
     display_message('Calculating User Stats...')
