@@ -1,6 +1,12 @@
 import time
 import pandas as pd
 import numpy as np
+import ctypes
+
+# Constants from the Windows API
+STD_OUTPUT_HANDLE = -11
+FOREGROUND_RED    = 0x0004 # text color contains red.
+FOREGROUND_GREEN  = 0x0002 # text color contains green.
 
 """
 Script to analyse and filter bike share data
@@ -43,6 +49,39 @@ DAYS = { 'monday': 0,
          'sunday' : 6,               
          'all' : -1 }
 
+def get_csbi_attributes(handle):
+    # Based on IPython's winconsole.py, written by Alexander Belchenko
+    import struct
+    csbi = ctypes.create_string_buffer(22)
+    res = ctypes.windll.kernel32.GetConsoleScreenBufferInfo(handle, csbi)
+    assert res
+
+    (bufx, bufy, curx, cury, wattr,
+    left, top, right, bottom, maxx, maxy) = struct.unpack("hhhhHhhhhhh", csbi.raw)
+    return wattr
+
+def display_message(message, message_level = "info"):
+    """
+    Displays message to the user
+    Args:
+        (str) - message - what to display to the user
+
+    """
+    handle = ctypes.windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
+    reset = get_csbi_attributes(handle)
+
+    if (message_level == "error"):
+        ctypes.windll.kernel32.SetConsoleTextAttribute(handle, FOREGROUND_RED)
+        print(message)
+        
+    else:
+        ctypes.windll.kernel32.SetConsoleTextAttribute(handle, FOREGROUND_GREEN)
+        print(message)
+    
+    ctypes.windll.kernel32.SetConsoleTextAttribute(handle, reset)
+
+    #print(CREDBG2 + message)
+        
 def get_valid_input(prompt, valid_values):
     """
     Get input from the user and validates against a valid list of options
@@ -62,7 +101,8 @@ def get_valid_input(prompt, valid_values):
             if input_value.lower() == valid_value.lower():
                 return valid_value
         
-        input_value = input('\n' + '   Sorry but "' + input_value + '" is not a valid value.\n   Valid options are: ' + valid_values_string + '\n')
+        display_message('   Sorry "' + input_value + '" is not a valid value.','error')
+        input_value = input('\n' + prompt + '\n   Valid options are: ' + valid_values_string + '\n')
 
     return ""
 
@@ -113,9 +153,9 @@ def get_filters():
     # get user input for day of week (all, monday, tuesday, ... sunday)
     day = get_valid_input('Which day do you want to analyse?',DAYS.keys())
     
-    print('-'*40)  
-    print('Processing City=' + city + ' Month=' + month + '(' + str(MONTHS[month]) + ') Day=' + day + '(' + str(DAYS[day]) +')' )  
-    print('-'*40) 
+    display_message('-'*40)  
+    display_message('Processing City=' + city + ' Month=' + month + '(' + str(MONTHS[month]) + ') Day=' + day + '(' + str(DAYS[day]) +')' )  
+    display_message('-'*40) 
 
     return city, month, day
 
@@ -161,26 +201,26 @@ def time_stats(df):
 
     # Check if there is any time data
     if df['Start Time'].count() == 0:
-        print('\nSorry there is no time data to report on.\n')
+        display_message('Sorry there is no time data to report on.','error')
         return
 
-    print('\nCalculating The Most Frequent Times of Travel...\n')
+    display_message('Calculating The Most Frequent Times of Travel...')
     start_time = time.time()
 
     # display the most common month
     common_month = df['start_month'].mode()[0]
-    print('The most common month is:', get_month_name(common_month))
+    display_message('The most common month is: ' + get_month_name(common_month))
 
     # display the most common day of week
     common_day = df['start_weekday'].mode()[0]
-    print('The most common day is:', get_day_name(common_day))
+    display_message('The most common day is: ' + get_day_name(common_day))
 
     # display the most common start hour
     common_hour = df['start_hour'].mode()[0]
-    print('The most common hour is:', common_hour)
+    display_message('The most common hour is: ' + str(common_hour))
 
-    print("\nThis took %s seconds." % (time.time() - start_time))
-    print('-'*40)
+    display_message("This took %s seconds." % (time.time() - start_time))
+    display_message('-'*40)
 
 
 def station_stats(df):
@@ -188,31 +228,31 @@ def station_stats(df):
 
     # Check if there is any station data
     if df['Start Station'].count() == 0:
-        print('\nSorry there is no station data to report on.\n')
+        display_message('Sorry there is no station data to report on.','error')
         return
 
-    print('\nCalculating The Most Popular Stations and Trip...\n')
+    display_message('Calculating The Most Popular Stations and Trip...')
     start_time = time.time()
 
     # display most commonly used start station
     common_start_station = df['Start Station'].mode()[0]
 
-    print('The most common start station is:', common_start_station)
+    display_message('The most common start station is: ' + common_start_station)
 
     # display most commonly used end station
     common_end_station = df['End Station'].mode()[0]
 
-    print('The most common end station is:', common_end_station)
+    display_message('The most common end station is: ' + common_end_station)
 
     # display most frequent combination of start station and end station trip
     # Add a column containng the start and end stations
     df['start_end_station'] = df['Start Station'] + ' - ' + df['End Station']
     common_start_end_station = df['start_end_station'].mode()[0]
 
-    print('The most common start and end station combo is:', common_start_end_station)
+    display_message('The most common start and end station combo is: ' + common_start_end_station)
 
-    print("\nThis took %s seconds." % (time.time() - start_time))
-    print('-'*40)
+    display_message("This took %s seconds." % (time.time() - start_time))
+    display_message('-'*40)
 
 
 def trip_duration_stats(df):
@@ -221,22 +261,22 @@ def trip_duration_stats(df):
     # Check if there is any trip data
     
     if df['Trip Duration'].count() == 0:
-        print('\nSorry there is no trip data to report on.\n')
+        display_message('Sorry there is no trip data to report on.','error')
         return
 
-    print('\nCalculating Trip Duration...\n')
+    display_message('Calculating Trip Duration...')
     start_time = time.time()
 
     # display total travel time
     total_trip_duration = df['Trip Duration'].sum()
-    print('The total trip duration is ' + str(total_trip_duration) + ' seconds')
+    display_message('The total trip duration is ' + str(total_trip_duration) + ' seconds')
 
     # display mean travel time
     mean_trip_duration = df['Trip Duration'].mode()[0]
-    print('The mean trip duration is ' + str(mean_trip_duration) + ' seconds')
+    display_message('The mean trip duration is ' + str(mean_trip_duration) + ' seconds')
 
-    print("\nThis took %s seconds." % (time.time() - start_time))
-    print('-'*40)
+    display_message("This took %s seconds." % (time.time() - start_time))
+    display_message('-'*40)
 
 
 def user_stats(df):
@@ -244,24 +284,24 @@ def user_stats(df):
 
     # Check if there is any user data
     if df['User Type'].count() == 0:
-        print('\nSorry there is no user data to report on.\n')
+        display_message('Sorry there is no user data to report on.','error')
         return
 
-    print('\nCalculating User Stats...\n')
+    display_message('Calculating User Stats...')
     start_time = time.time()
 
     # Display counts of user types
     user_types = df.value_counts(['User Type'])
-    print("\nThe following table shows the count of different user types:\n")
-    print (user_types)
+    display_message("The following table shows the count of different user types:")
+    display_message (user_types)
 
     # Display counts of gender    
     if 'Gender' in df.columns:
-        print("\nThe following table shows the count of different genders:\n")
+        display_message("The following table shows the count of different genders:")
         gender_counts = df.value_counts(['Gender'])        
-        print (gender_counts)
+        display_message (gender_counts)
     else:
-        print("\nThis data contains no gender data\n")
+        display_message("This data contains no gender data")
 
     if 'Birth Year' in df.columns:
         # Display earliest, most recent, and most common year of birth
@@ -269,14 +309,14 @@ def user_stats(df):
         recent_year_of_birth = df['Birth Year'].max()
         common_year_of_birth = df['Birth Year'].mode()[0]
 
-        print('\nThe earliest year of birth is :', int(earliest_year_of_birth))
-        print('\nThe most recent year of birth is :', int(recent_year_of_birth))
-        print('\nThe most common year of birth is :', int(common_year_of_birth))
+        display_message('The earliest year of birth is : ' + str(int(earliest_year_of_birth)))
+        display_message('The most recent year of birth is : ' + str(int(recent_year_of_birth)))
+        display_message('The most common year of birth is : ' + str(int(common_year_of_birth)))
     else:
-        print('\nThis data does not contain birth years.\n')
+        display_message('This data does not contain birth years.')
 
-    print("\nThis took %s seconds." % (time.time() - start_time))
-    print('-'*40)
+    display_message("This took %s seconds." % (time.time() - start_time))
+    display_message('-'*40)
 
 def display_data(df):
     """Displays data 5 records at a time."""
@@ -288,8 +328,8 @@ def display_data(df):
     max_rows = len(df.index)
     answer = get_valid_input('Would you like to display the raw data?', YES_NO)
     if answer == 'yes':
-        print((df[start_row:end_row]).to_string(index=False))
-        print ('Displayed rows ' + str(start_row) + ' to ' + str(end_row) + ' of ' + str(max_rows) + ' rows')
+        display_message((df[start_row:end_row]).to_string(index=False))
+        display_message ('Displayed rows ' + str(start_row) + ' to ' + str(end_row) + ' of ' + str(max_rows) + ' rows')
     else:
         return
 
@@ -298,18 +338,18 @@ def display_data(df):
         if answer == "yes":           
             start_row += 5
             end_row += 5
-            print((df[start_row:end_row]).to_string(index=False, header=False))
-            print ('Displayed rows ' + str(start_row) + ' to ' + str(end_row) + ' of ' + str(max_rows) + ' rows')
+            display_message((df[start_row:end_row]).to_string(index=False, header=False))
+            display_message ('Displayed rows ' + str(start_row) + ' to ' + str(end_row) + ' of ' + str(max_rows) + ' rows')
         else:
-            print("\n")
+            display_message("")
             break
     else:
         end_row = max_rows
-        print("\nYou have reached the end of the data\n")
+        display_message("You have reached the end of the data")
 
 
-    print("\nThis took %s seconds." % (time.time() - start_time))
-    print('-'*40)
+    display_message("This took %s seconds." % (time.time() - start_time))
+    display_message('-'*40)
 
 def main():
     while True:
